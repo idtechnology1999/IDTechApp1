@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "IDTECH",
-    "slug": "IDTECH",
+    "slug": "project",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon1.png",
@@ -43,6 +43,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "189e07ed-b87f-491e-8c71-46daad7241e3"
+      }
+    },
+    "owner": "oluwaseun_123"
   }
 }
