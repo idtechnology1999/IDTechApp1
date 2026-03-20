@@ -23,7 +23,6 @@ export default function Login() {
   const [loading,     setLoading]     = useState(false);
   const [message,     setMessage]     = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
-  const [resetLoading, setResetLoading] = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -41,26 +40,7 @@ export default function Login() {
     Animated.timing(barWidth, { toValue: 1, duration: 800, useNativeDriver: false }).start();
   }, []);
 
-  const handleForgotPassword = () => {
-    Alert.prompt(
-      "Reset Password",
-      "Enter your registered email address. Your password will be reset to IDTECH.",
-      async (inputEmail) => {
-        if (!inputEmail?.trim()) return;
-        setResetLoading(true);
-        try {
-          const res = await axios.patch(`${apiUrl}/api/mobile/reset-password`, { email: inputEmail.trim() });
-          Alert.alert(res.data.status ? "Success" : "Error", res.data.message);
-        } catch {
-          Alert.alert("Error", "Unable to connect to server.");
-        } finally {
-          setResetLoading(false);
-        }
-      },
-      "plain-text",
-      email
-    );
-  };
+  const handleForgotPassword = () => router.push("/ForgotPassword");
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -156,8 +136,8 @@ export default function Login() {
               </View>
 
               {/* Forgot */}
-              <TouchableOpacity style={styles.forgotWrap} onPress={handleForgotPassword} disabled={resetLoading}>
-                <Text style={styles.forgotText}>{resetLoading ? "Resetting..." : "Forgot password?"}</Text>
+              <TouchableOpacity style={styles.forgotWrap} onPress={handleForgotPassword}>
+                <Text style={styles.forgotText}>Forgot password?</Text>
               </TouchableOpacity>
 
               {/* Login button */}
