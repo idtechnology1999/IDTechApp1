@@ -1,44 +1,48 @@
 {
   "expo": {
     "name": "IDTECH",
-    "slug": "project",
+    "slug": "idtech",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon1.png",
+    "icon": "./assets/images/mylogo.png",
     "scheme": "idtech",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.oluwaseuni.idtech"
+      "bundleIdentifier": "com.oluwaseuni.idtech",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.oluwaseun123.idtech",
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background1.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome1.png"
-      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/mylogo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/mylogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow access to save downloaded videos",
+          "savePhotosPermission": "Allow access to save videos",
+          "isAccessMediaLocationEnabled": false
         }
       ]
     ],
@@ -49,9 +53,14 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "189e07ed-b87f-491e-8c71-46daad7241e3"
+        "projectId": "7fb00d2d-0473-4759-82e2-d380e47c5bb3"
       }
     },
-    "owner": "oluwaseun_123"
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7fb00d2d-0473-4759-82e2-d380e47c5bb3"
+    }
   }
 }
