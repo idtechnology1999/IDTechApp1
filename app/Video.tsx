@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  Image,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
@@ -72,13 +74,13 @@ export default function Video() {
   const [showControls, setShowControls] = useState(true);
   const [selectedCourseFilter, setSelectedCourseFilter] = useState(selectedCourse || "All");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isPiPMode, setIsPiPMode] = useState(false); // Picture-in-Picture mode
+  const [isPiPMode, setIsPiPMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
   // Fetch user and videos from backend
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const email = await AsyncStorage.getItem("userEmail");
         if (!email) {
@@ -183,8 +185,15 @@ export default function Video() {
       }
     };
 
+  useEffect(() => {
     fetchData();
   }, [selectedCourse]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   // Auto-hide controls
   useEffect(() => {
@@ -575,10 +584,11 @@ export default function Video() {
         </ScrollView>
       </View>
 
-      <View style={[styles.scrollableSection, { height: isPiPMode ? SCREEN_HEIGHT - TAB_BAR_HEIGHT - 100 : CONTENT_HEIGHT }]}>
+      <View style={styles.scrollableSection}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6A00"]} tintColor="#FF6A00" />}
         >
           {filteredVideos.length === 0 ? (
             <View style={styles.emptyState}>
@@ -586,7 +596,7 @@ export default function Video() {
               <Text style={styles.emptyText}>No videos found</Text>
             </View>
           ) : (
-            filteredVideos.map((video) => (
+            filteredVideos.map((video, index) => (
               <TouchableOpacity
                 key={video.id}
                 style={[
@@ -595,6 +605,9 @@ export default function Video() {
                 ]}
                 onPress={() => selectVideo(video)}
               >
+                <View style={styles.numberBadge}>
+                  <Text style={styles.numberText}>{index + 1}</Text>
+                </View>
                 <View style={styles.thumbnailContainer}>
                   {courseImageMap[video.course] ? (
                     <Image
@@ -842,6 +855,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   scrollableSection: {
+    flex: 1,
     paddingHorizontal: 16,
     backgroundColor: "#F9FBFF",
   },
@@ -861,6 +875,7 @@ const styles = StyleSheet.create({
   },
   videoCard: {
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 12,
@@ -870,6 +885,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
+  },
+  numberBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FF6A00",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  numberText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
   videoCardActive: {
     borderWidth: 2,

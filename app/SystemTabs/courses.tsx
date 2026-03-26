@@ -10,6 +10,7 @@ import {
   useColorScheme,
   Dimensions,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, Card } from "react-native-paper";
@@ -31,11 +32,11 @@ export default function CoursesScreen() {
   const [search, setSearch] = useState("");
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-  useEffect(() => {
-    const fetchCourses = async () => {
+  const fetchCourses = async () => {
       try {
         const email = await AsyncStorage.getItem("userEmail");
         if (!email) return;
@@ -67,8 +68,15 @@ export default function CoursesScreen() {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCourses();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
     fetchCourses();
   }, []);
 
@@ -147,6 +155,7 @@ export default function CoursesScreen() {
           style={styles.scrollContainer}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6A00"]} tintColor="#FF6A00" />}
         >
           {filteredCourses.length === 0 ? (
             <View style={styles.emptyState}>
@@ -197,8 +206,17 @@ export default function CoursesScreen() {
                           {item.status}
                         </Text>
                       </View>
-                      <View style={styles.playBtn}>
-                        <Ionicons name="play" size={22} color="#fff" />
+                      <View style={styles.actionBtns}>
+                        <TouchableOpacity
+                          style={styles.outlineBtn}
+                          onPress={() => router.push({ pathname: "/CourseOutline", params: { course: item.title } })}
+                        >
+                          <Ionicons name="list-outline" size={14} color="#2563eb" />
+                          <Text style={styles.outlineBtnText}>Outline</Text>
+                        </TouchableOpacity>
+                        <View style={styles.playBtn}>
+                          <Ionicons name="play" size={22} color="#fff" />
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -329,6 +347,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 10,
     alignItems: "center",
+  },
+  actionBtns: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  outlineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  outlineBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#2563eb",
   },
   progressPercent: {
     fontSize: 14,

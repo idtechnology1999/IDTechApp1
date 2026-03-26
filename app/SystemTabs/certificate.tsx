@@ -12,6 +12,7 @@ import {
   Alert,
   Dimensions,
   StatusBar,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
@@ -32,50 +33,52 @@ export default function CertificatesScreen() {
 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-  const swipeConfig = {
-    velocityThreshold: 0.25,
-    directionalOffsetThreshold: 70,
+  const fetchCertificates = async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) { setLoading(false); return; }
+
+      const response = await axios.post(`${apiUrl}/api/mobile/profile`, { email });
+
+      if (response.data.status) {
+        const userData = response.data.data;
+        const userCourses: { name: string; certificate: string; image: string | null }[] =
+          Array.isArray(userData.courses) ? userData.courses : [];
+
+        const mapped = userCourses.map((c, index) => ({
+          id: `CERT-${new Date().getFullYear()}-${String(index + 1).padStart(3, "0")}`,
+          course:         c.name,
+          status:         c.certificate === "Completed" ? "COMPLETED" : "PENDING",
+          canDownload:    c.certificate === "Completed",
+          canShare:       c.certificate === "Completed",
+          image:          c.image || null,
+          durationMonths: (c as any).durationMonths || 1,
+          isUnlimited:    (c as any).isUnlimited || false,
+          startDate:      (c as any).startDate || null,
+        }));
+
+        setCertificates(mapped);
+      }
+    } catch (error) {
+      console.log("Error fetching certificates:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCertificates();
+    setRefreshing(false);
   };
 
   useEffect(() => {
-    const fetchCertificates = async () => {
-      try {
-        const email = await AsyncStorage.getItem("userEmail");
-        if (!email) { setLoading(false); return; }
-
-        const response = await axios.post(`${apiUrl}/api/mobile/profile`, { email });
-
-        if (response.data.status) {
-          const userData = response.data.data;
-          const userCourses: { name: string; certificate: string; image: string | null }[] =
-            Array.isArray(userData.courses) ? userData.courses : [];
-
-          const mapped = userCourses.map((c, index) => ({
-            id: `CERT-${new Date().getFullYear()}-${String(index + 1).padStart(3, "0")}`,
-            course:         c.name,
-            status:         c.certificate === "Completed" ? "COMPLETED" : "PENDING",
-            canDownload:    c.certificate === "Completed",
-            canShare:       c.certificate === "Completed",
-            image:          c.image || null,
-            durationMonths: (c as any).durationMonths || 1,
-            isUnlimited:    (c as any).isUnlimited || false,
-            startDate:      (c as any).startDate || null,
-          }));
-
-          setCertificates(mapped);
-        }
-      } catch (error) {
-        console.log("Error fetching certificates:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCertificates();
   }, []);
 
@@ -97,127 +100,259 @@ export default function CertificatesScreen() {
 
   // ── Shared HTML builder ────────────────────────────────────────────────────
   const buildCertHTML = (item: any, userName: string) => {
-    const months   = item.isUnlimited ? 12 : (item.durationMonths || 1);
-    const start    = new Date(item.startDate || Date.now());
-    const end      = new Date(start);
+    const months  = item.isUnlimited ? 12 : (item.durationMonths || 1);
+    const start   = new Date(item.startDate || Date.now());
+    const end     = new Date(start);
     end.setMonth(end.getMonth() + months);
-    const duration = item.isUnlimited
-      ? "Unlimited Access (12 Months)"
-      : `${months} Month${months > 1 ? "s" : ""}`;
-    const issued   = start.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-    const expires  = end.toLocaleDateString("en-GB",   { day: "2-digit", month: "long", year: "numeric" });
+    const issued  = start.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    const endDate = end.toLocaleDateString("en-GB",   { day: "2-digit", month: "long", year: "numeric" });
+    const year    = new Date().getFullYear();
 
     return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Cinzel:wght@700&family=Inter:wght@400;600&display=swap');
-    @page { size: A4 landscape; margin: 0; }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:297mm; height:210mm; background:#fff; font-family:'Inter',sans-serif; overflow:hidden; }
-    .cert {
-      width:297mm; height:210mm; position:relative; background:#fff;
-      background-image:radial-gradient(circle,#d4d4d4 1px,transparent 1px);
-      background-size:22px 22px; border:3px solid #c9a84c; overflow:hidden;
-    }
-    .corner-tl{position:absolute;top:0;left:0;width:280px;height:280px;background:linear-gradient(135deg,#0a3d2e 60%,transparent 60%);z-index:2}
-    .corner-br{position:absolute;bottom:0;right:0;width:200px;height:200px;background:linear-gradient(315deg,#0a3d2e 60%,transparent 60%);z-index:2}
-    .stripe{position:absolute;z-index:3}
-    .stripe-1{top:30px;left:-20px;width:340px;height:14px;background:linear-gradient(90deg,#c9a84c,#f5e17a,#c9a84c);transform:rotate(45deg);transform-origin:left center}
-    .stripe-2{top:50px;left:-20px;width:340px;height:8px;background:linear-gradient(90deg,#c9a84c,#f5e17a,#c9a84c);transform:rotate(45deg);transform-origin:left center}
-    .stripe-3{top:65px;left:-20px;width:340px;height:4px;background:linear-gradient(90deg,#c9a84c,#f5e17a,#c9a84c);transform:rotate(45deg);transform-origin:left center}
-    .stripe-4{bottom:30px;right:-20px;width:280px;height:14px;background:linear-gradient(90deg,#c9a84c,#f5e17a,#c9a84c);transform:rotate(45deg);transform-origin:right center}
-    .stripe-5{bottom:50px;right:-20px;width:280px;height:8px;background:linear-gradient(90deg,#c9a84c,#f5e17a,#c9a84c);transform:rotate(45deg);transform-origin:right center}
-    .tick{position:absolute;z-index:4}
-    .tick-tr{top:16px;right:16px;width:2px;height:30px;background:#c9a84c}
-    .tick-tr2{top:16px;right:16px;width:30px;height:2px;background:#c9a84c}
-    .tick-bl{bottom:16px;left:16px;width:2px;height:30px;background:#c9a84c}
-    .tick-bl2{bottom:16px;left:16px;width:30px;height:2px;background:#c9a84c}
-    .badge{position:absolute;top:28px;left:28px;z-index:10;width:90px;height:90px;background:radial-gradient(circle,#f5e17a 30%,#c9a84c 100%);border-radius:50%;border:3px solid #a07830;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 0 4px #0a3d2e,0 0 0 6px #c9a84c}
-    .badge-year{font-size:9px;font-weight:700;color:#0a3d2e;letter-spacing:1px}
-    .badge-award{font-size:13px;font-weight:800;color:#0a3d2e}
-    .badge-stars{font-size:8px;color:#0a3d2e;letter-spacing:2px}
-    .content{position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 80px 20px 200px;text-align:center}
-    .cert-label{font-family:'Cinzel',serif;font-size:36px;font-weight:700;color:#0a3d2e;letter-spacing:6px;margin-bottom:2px}
-    .cert-sub{background:#0a3d2e;color:#fff;font-size:11px;letter-spacing:4px;text-transform:uppercase;padding:4px 18px;margin-bottom:20px}
-    .student-name{font-family:'Great Vibes',cursive;font-size:58px;color:#0a3d2e;line-height:1.1;margin-bottom:6px}
-    .name-line{width:60%;height:1.5px;background:#0a3d2e;margin:0 auto 18px}
-    .body-text{font-size:13px;color:#444;line-height:1.8;max-width:480px}
-    .course-name{font-weight:700;color:#0a3d2e}
-    .footer{position:absolute;bottom:36px;left:0;right:0;z-index:6;display:flex;justify-content:space-around;align-items:flex-end;padding:0 120px 0 200px}
-    .sig-block{text-align:center}
-    .sig-line-f{width:140px;border-top:1.5px solid #0a3d2e;margin:0 auto 4px}
-    .sig-label{font-size:10px;font-weight:700;color:#0a3d2e;letter-spacing:1px;text-transform:uppercase}
-    .date-val{font-size:14px;font-weight:600;color:#0a3d2e;margin-bottom:4px}
-    .company{position:absolute;top:20px;right:24px;z-index:6;text-align:right}
-    .company-name{font-family:'Cinzel',serif;font-size:11px;color:#0a3d2e;font-weight:700;letter-spacing:1px}
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Certificate of Completion</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Lato:wght@300;400;700&family=Great+Vibes&display=swap');
+  @page { size: A4 landscape; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 297mm; height: 210mm; overflow: hidden; }
+
+  .page {
+    width: 297mm;
+    height: 210mm;
+    background: #fff;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Lato', sans-serif;
+  }
+
+  /* Outer gold border */
+  .border-outer {
+    position: absolute;
+    inset: 8mm;
+    border: 3px solid #c9a84c;
+  }
+  /* Inner thin border */
+  .border-inner {
+    position: absolute;
+    inset: 11mm;
+    border: 1px solid #c9a84c;
+  }
+
+  /* Dark green header band */
+  .header-band {
+    position: absolute;
+    top: 8mm;
+    left: 8mm;
+    right: 8mm;
+    height: 22mm;
+    background: #0a3d2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .company-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: #c9a84c;
+    letter-spacing: 4px;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .company-sub {
+    font-size: 9px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Gold divider line */
+  .gold-line {
+    width: 120mm;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #c9a84c, #f5e17a, #c9a84c, transparent);
+    margin: 0 auto;
+  }
+
+  /* Main content area */
+  .body {
+    position: absolute;
+    top: 30mm;
+    left: 14mm;
+    right: 14mm;
+    bottom: 18mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 5px;
+  }
+
+  .cert-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .cert-of {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #0a3d2e;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .presented-to {
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+  .student-name {
+    font-family: 'Great Vibes', cursive;
+    font-size: 54px;
+    color: #0a3d2e;
+    line-height: 1.1;
+    margin: 2px 0;
+  }
+  .name-underline {
+    width: 180px;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, #c9a84c, transparent);
+    margin: 0 auto;
+  }
+  .desc {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.9;
+    margin-top: 6px;
+  }
+  .course-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0a3d2e;
+  }
+
+  /* Footer row */
+  .footer {
+    position: absolute;
+    bottom: 12mm;
+    left: 18mm;
+    right: 18mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .sig-block { text-align: center; }
+  .sig-line  { width: 110px; height: 1px; background: #0a3d2e; margin: 0 auto 4px; }
+  .sig-label { font-size: 9px; font-weight: 700; color: #0a3d2e; letter-spacing: 1.5px; text-transform: uppercase; }
+  .sig-value { font-size: 11px; color: #444; margin-bottom: 4px; }
+
+  /* Seal */
+  .seal {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #f5e17a 20%, #c9a84c 70%, #a07830 100%);
+    border: 3px solid #0a3d2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 3px #c9a84c;
+  }
+  .seal-text  { font-size: 7px; font-weight: 900; color: #0a3d2e; letter-spacing: 1px; text-transform: uppercase; text-align: center; line-height: 1.4; }
+  .seal-stars { font-size: 8px; color: #0a3d2e; }
+
+  /* Corner ornaments */
+  .orn { position: absolute; font-size: 22px; color: #c9a84c; z-index: 10; line-height: 1; }
+  .orn-tl { top: 9.5mm;  left: 9.5mm;  }
+  .orn-tr { top: 9.5mm;  right: 9.5mm; }
+  .orn-bl { bottom: 9.5mm; left: 9.5mm;  }
+  .orn-br { bottom: 9.5mm; right: 9.5mm; }
+</style>
 </head>
 <body>
-  <div class="cert">
-    <div class="corner-tl"></div><div class="corner-br"></div>
-    <div class="stripe stripe-1"></div><div class="stripe stripe-2"></div>
-    <div class="stripe stripe-3"></div><div class="stripe stripe-4"></div>
-    <div class="stripe stripe-5"></div>
-    <div class="tick tick-tr"></div><div class="tick tick-tr2"></div>
-    <div class="tick tick-bl"></div><div class="tick tick-bl2"></div>
-    <div class="badge">
-      <div class="badge-stars">★ ★ ★</div>
-      <div class="badge-year">${new Date().getFullYear()}</div>
-      <div class="badge-award">AWARD</div>
-      <div class="badge-stars">★ ★ ★</div>
+<div class="page">
+  <div class="border-outer"></div>
+  <div class="border-inner"></div>
+
+  <span class="orn orn-tl">❧</span>
+  <span class="orn orn-tr">❧</span>
+  <span class="orn orn-bl">❧</span>
+  <span class="orn orn-br">❧</span>
+
+  <!-- Header band -->
+  <div class="header-band">
+    <div class="company-name">IDTECH Real World Innovations</div>
+    <div class="company-sub">Excellence in Technology Education</div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <div class="cert-title">This certificate is proudly presented to</div>
+    <div class="cert-of">Certificate of Completion</div>
+    <div class="presented-to">Presented To</div>
+    <div class="student-name">${userName}</div>
+    <div class="name-underline"></div>
+    <div class="desc">
+      In recognition of the successful completion of the course<br/>
+      <span class="course-name">${item.course}</span>
     </div>
-    <div class="company"><div class="company-name">IDTECH REAL WORLD INNOVATIONS</div></div>
-    <div class="content">
-      <div class="cert-label">CERTIFICATE</div>
-      <div class="cert-sub">OF COMPLETION</div>
-      <div class="student-name">${userName}</div>
-      <div class="name-line"></div>
-      <div class="body-text">
-        has successfully completed the course<br/>
-        <span class="course-name">${item.course}</span><br/><br/>
-        Duration: ${duration} &nbsp;|&nbsp; Issued: ${issued} &nbsp;|&nbsp; Expires: ${expires}
-      </div>
+    <div class="gold-line" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="sig-block">
+      <div class="sig-value">${issued}</div>
+      <div class="sig-line"></div>
+      <div class="sig-label">Date Issued</div>
     </div>
-    <div class="footer">
-      <div class="sig-block">
-        <div class="sig-line-f"></div>
-        <div class="sig-label">Director's Signature</div>
-      </div>
-      <div class="sig-block">
-        <div class="date-val">${issued}</div>
-        <div class="sig-line-f"></div>
-        <div class="sig-label">Date</div>
-      </div>
+
+    <div class="seal">
+      <div class="seal-stars">★ ★ ★</div>
+      <div class="seal-text">IDTECH\n${year}</div>
+      <div class="seal-stars">★ ★ ★</div>
+    </div>
+
+    <div class="sig-block">
+      <div class="sig-value">${endDate}</div>
+      <div class="sig-line"></div>
+      <div class="sig-label">End Date</div>
     </div>
   </div>
+</div>
 </body>
 </html>`;
   };
 
-  // ── WEB download: open new tab → auto-trigger browser Print → Save as PDF ─
+  // ── WEB: write HTML into a blob URL (no about:blank) ──────────────────────
   const handleDownloadWeb = (item: any) => {
     const userName =
       (typeof localStorage !== "undefined" ? localStorage.getItem("userName") : null) ?? "Student";
-
     const html = buildCertHTML(item, userName);
-
-    const win = window.open("", "_blank");
-    if (!win) {
-      alert("Please allow pop-ups for this site so the certificate can open.");
-      return;
-    }
-
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-
-    // Wait for fonts/layout, then show print dialog (Ctrl+P → Save as PDF)
-    setTimeout(() => {
-      win.focus();
-      win.print();
-    }, 900);
+    const blob = new Blob([html], { type: "text/html" });
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, "_blank");
+    if (!win) { alert("Please allow pop-ups to open the certificate."); return; }
+    setTimeout(() => { win.focus(); win.print(); }, 1200);
   };
 
   // ── NATIVE download: expo-print → MediaLibrary (Android) / Sharing (iOS) ─
@@ -250,10 +385,9 @@ export default function CertificatesScreen() {
   };
 
   return (
-    <GestureRecognizer style={{ flex: 1 }} config={swipeConfig}>
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: isDark ? "#101010" : "#F9FBFF" }]}
-      >
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: isDark ? "#101010" : "#F9FBFF" }]}
+    >
         {/* Sticky Header */}
         <View
           style={[
@@ -298,6 +432,7 @@ export default function CertificatesScreen() {
             style={styles.scrollContainer}
             contentContainerStyle={{ paddingBottom: 20 }}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6A00"]} tintColor="#FF6A00" />}
           >
             {loading && (
               <View style={styles.loadingContainer}>
@@ -377,7 +512,6 @@ export default function CertificatesScreen() {
           </ScrollView>
         </View>
       </SafeAreaView>
-    </GestureRecognizer>
   );
 }
 

@@ -14,11 +14,15 @@ const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 export default function ForgotPassword() {
   const router = useRouter();
 
-  const [email,   setEmail]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [msg,     setMsg]     = useState("");
-  const [msgType, setMsgType] = useState<"success" | "error">("error");
-  const [done,    setDone]    = useState(false);
+  const [email,       setEmail]       = useState("");
+  const [newPass,     setNewPass]     = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [showNew,     setShowNew]     = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [msg,         setMsg]         = useState("");
+  const [msgType,     setMsgType]     = useState<"success" | "error">("error");
+  const [done,        setDone]        = useState(false);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -33,11 +37,18 @@ export default function ForgotPassword() {
   }, []);
 
   const handleReset = async () => {
-    if (!email.trim()) { setMsgType("error"); setMsg("Please enter your email address."); return; }
+    if (!email.trim())        { setMsgType("error"); setMsg("Please enter your email address."); return; }
+    if (!newPass.trim())      { setMsgType("error"); setMsg("Please enter a new password."); return; }
+    if (newPass.length < 6)   { setMsgType("error"); setMsg("Password must be at least 6 characters."); return; }
+    if (newPass !== confirmPass) { setMsgType("error"); setMsg("Passwords do not match."); return; }
+
     setLoading(true);
     setMsg("");
     try {
-      const res = await axios.patch(`${apiUrl}/api/mobile/reset-password`, { email: email.trim() });
+      const res = await axios.patch(`${apiUrl}/api/mobile/reset-password`, {
+        email: email.trim(),
+        newPassword: newPass,
+      });
       setMsgType(res.data.status ? "success" : "error");
       setMsg(res.data.message);
       if (res.data.status) setDone(true);
@@ -67,11 +78,8 @@ export default function ForgotPassword() {
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <Text style={styles.title}>Forgot Password?</Text>
-            <Text style={styles.sub}>
-              Enter your registered email address. Your password will be reset to{" "}
-              <Text style={styles.highlight}>"IDTECH"</Text>.
-            </Text>
+            <Text style={styles.title}>Reset Password</Text>
+            <Text style={styles.sub}>Enter your email and choose a new password.</Text>
 
             {msg ? (
               <View style={[styles.msgBox, msgType === "success" ? styles.successBox : styles.errorBox]}>
@@ -86,6 +94,7 @@ export default function ForgotPassword() {
 
             {!done ? (
               <>
+                {/* Email */}
                 <Text style={styles.fieldLbl}>Email Address</Text>
                 <View style={styles.fieldRow}>
                   <Ionicons name="mail-outline" size={15} color="#C5CADB" style={styles.fieldIco} />
@@ -97,8 +106,41 @@ export default function ForgotPassword() {
                     placeholderTextColor="#C5CADB"
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    autoFocus
                   />
+                </View>
+
+                {/* New Password */}
+                <Text style={styles.fieldLbl}>New Password</Text>
+                <View style={styles.fieldRow}>
+                  <Ionicons name="lock-closed-outline" size={15} color="#C5CADB" style={styles.fieldIco} />
+                  <TextInput
+                    style={[styles.fieldInput, { paddingRight: 44 }]}
+                    value={newPass}
+                    onChangeText={setNewPass}
+                    placeholder="Min. 6 characters"
+                    placeholderTextColor="#C5CADB"
+                    secureTextEntry={!showNew}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowNew(!showNew)}>
+                    <Ionicons name={showNew ? "eye-off-outline" : "eye-outline"} size={18} color="#C5CADB" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Confirm Password */}
+                <Text style={styles.fieldLbl}>Confirm Password</Text>
+                <View style={styles.fieldRow}>
+                  <Ionicons name="lock-closed-outline" size={15} color="#C5CADB" style={styles.fieldIco} />
+                  <TextInput
+                    style={[styles.fieldInput, { paddingRight: 44 }]}
+                    value={confirmPass}
+                    onChangeText={setConfirmPass}
+                    placeholder="Re-enter new password"
+                    placeholderTextColor="#C5CADB"
+                    secureTextEntry={!showConfirm}
+                  />
+                  <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirm(!showConfirm)}>
+                    <Ionicons name={showConfirm ? "eye-off-outline" : "eye-outline"} size={18} color="#C5CADB" />
+                  </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
@@ -123,8 +165,8 @@ export default function ForgotPassword() {
               <Ionicons name="arrow-back-outline" size={14} color="#1A73E8" />
               <Text style={styles.backToLoginText}>Back to Login</Text>
             </TouchableOpacity>
-          </Animated.View>
 
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -140,16 +182,16 @@ const styles = StyleSheet.create({
   iconCircle:      { width: 72, height: 72, borderRadius: 20, backgroundColor: "#FFF0E5", borderWidth: 1.5, borderColor: "#FFCFA0", justifyContent: "center", alignItems: "center" },
   title:           { fontSize: 24, fontWeight: "800", color: "#1A1D23", marginBottom: 10 },
   sub:             { fontSize: 14, color: "#6B7280", lineHeight: 22, marginBottom: 24 },
-  highlight:       { fontWeight: "700", color: "#FF6B00" },
   msgBox:          { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, marginBottom: 16, borderLeftWidth: 4 },
   msgText:         { fontSize: 13, fontWeight: "500", flex: 1 },
   successBox:      { backgroundColor: "#E6F4EA", borderLeftColor: "#34A853" },
   errorBox:        { backgroundColor: "#FDECEA", borderLeftColor: "#EA4335" },
   fieldLbl:        { fontSize: 11, fontWeight: "600", color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 },
-  fieldRow:        { position: "relative", flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  fieldRow:        { position: "relative", flexDirection: "row", alignItems: "center", marginBottom: 16 },
   fieldIco:        { position: "absolute", left: 13, zIndex: 1 },
   fieldInput:      { flex: 1, height: 48, backgroundColor: "#F9FAFB", borderWidth: 1.5, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 14, paddingLeft: 38, fontSize: 14, color: "#1A1D23" },
-  resetBtn:        { height: 52, backgroundColor: "#FF6B00", borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 20 },
+  eyeBtn:          { position: "absolute", right: 12, padding: 4 },
+  resetBtn:        { height: 52, backgroundColor: "#FF6B00", borderRadius: 12, justifyContent: "center", alignItems: "center", marginBottom: 20, marginTop: 4 },
   resetBtnText:    { fontSize: 15, fontWeight: "600", color: "#fff" },
   backToLogin:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 },
   backToLoginText: { fontSize: 13, fontWeight: "600", color: "#1A73E8" },

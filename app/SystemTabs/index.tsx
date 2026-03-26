@@ -7,6 +7,7 @@ import {
   Dimensions,
   Platform,
   StatusBar,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, Card, ProgressBar } from "react-native-paper";
@@ -45,11 +46,11 @@ function progressColor(p: number): string {
 export default function Dashboard() {
   const [user, setUser]           = useState<any>(null);
   const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-  useEffect(() => {
-    const fetchUserAndPayments = async () => {
+  const fetchUserAndPayments = async () => {
       try {
         const email = await AsyncStorage.getItem("userEmail");
         if (!email) { setLoading(false); return; }
@@ -79,8 +80,15 @@ export default function Dashboard() {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUserAndPayments();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
     fetchUserAndPayments();
   }, []);
 
@@ -113,6 +121,7 @@ export default function Dashboard() {
           style={styles.container}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6A00"]} tintColor="#FF6A00" />}
         >
           {/* Overall Progress Card */}
           <View style={styles.progressCard}>

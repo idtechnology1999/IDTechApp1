@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, TouchableOpacity, Share, Platform, StatusBar, Dimensions } from "react-native";
+import { ScrollView, StyleSheet, View, TouchableOpacity, Share, Platform, StatusBar, Dimensions, RefreshControl } from "react-native";
 import { Text } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -22,22 +22,30 @@ function formatDate(dateStr: string) {
 export default function PaymentsScreen() {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab]           = useState("All");
 
+  const fetchPayments = async () => {
+    try {
+      const email = await AsyncStorage.getItem("userEmail");
+      if (!email) { setLoading(false); return; }
+      const res = await axios.post(`${apiUrl}/api/mobile/payments`, { email });
+      if (res.data.status) setPayments(res.data.data ?? []);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPayments();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const email = await AsyncStorage.getItem("userEmail");
-        if (!email) { setLoading(false); return; }
-        const res = await axios.post(`${apiUrl}/api/mobile/payments`, { email });
-        if (res.data.status) setPayments(res.data.data ?? []);
-      } catch {
-        // silent
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
+    fetchPayments();
   }, []);
 
   const handleShare = async (p: any) => {
@@ -91,7 +99,8 @@ export default function PaymentsScreen() {
       {/* List */}
       <View style={{ height: CONTENT_HEIGHT, marginTop: HEADER_HEIGHT }}>
         <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 24 }}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6A00"]} tintColor="#FF6A00" />}>
 
           {loading && (
             <View style={styles.empty}>
